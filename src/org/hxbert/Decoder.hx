@@ -1,4 +1,5 @@
 package org.hxbert;
+import haxe.ds.ObjectMap;
 import haxe.io.Input;
 import haxe.io.BytesInput;
 import haxe.io.Bytes;
@@ -46,10 +47,10 @@ class Decoder {
                 readString(input);
             case Tag.LIST:
                 readArray(input);
+            case Tag.MAP:
+                readMap(input);
             case Tag.SMALL_TUPLE, Tag.LARGE_TUPLE:
                 readTuple(tag, input);
-//      case Tag.NIL:
-//        [];
             default:
                 error('Unexpected tag ' + tag + ' at pos 1');
                 {};
@@ -136,6 +137,18 @@ class Decoder {
         }
 
         return array;
+    }
+
+    private static inline function readMap(input: Input): ErlangValue {
+        var length = input.readInt32();
+
+        var map: ObjectMap<Dynamic, Dynamic> = new ObjectMap<Dynamic, Dynamic>();
+        while (length-- > 0) {
+            map.set(read(input), read(input));
+            length--;
+        }
+
+        return BERT.map(map);
     }
 
     private static inline function readTuple(type:UInt, input:Input):ErlangValue {

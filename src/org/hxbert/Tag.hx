@@ -19,6 +19,7 @@ class Tag
   public inline static var NEW_FLOAT: UInt = 70;
   public inline static var STRING: UInt = 107;
   public inline static var LIST: UInt = 108;
+  public inline static var MAP: UInt = 116;
   public inline static var SMALL_TUPLE: UInt = 104;
   public inline static var LARGE_TUPLE: UInt = 105;
   public inline static var NIL: UInt = 106;

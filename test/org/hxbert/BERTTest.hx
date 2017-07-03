@@ -1,5 +1,6 @@
 package org.hxbert;
 
+import haxe.ds.ObjectMap;
 import haxe.io.Bytes;
 import org.hxbert.BERT;
 import massive.munit.Assert;
@@ -188,6 +189,30 @@ class BERTTest {
         var complexObj: Dynamic = { a: 3.5, b: array, c: true };
         var decodedObj = BERT.decode(BERT.encode(complexObj));
         Assert.isTrue(decodedObj.a == 3.5 && decodedObj.c == true && decodedObj.b[2].x == 'hello');
+    }
+
+    @Test
+    public function encodeMap(): Void {
+        var key: ErlangValue = BERT.atom("foo");
+        var map: ObjectMap<Dynamic, Dynamic> = new ObjectMap<Dynamic, Dynamic>();
+        map.set(key, BERT.stringToBinary("bar"));
+        Assert.areEqual(
+            str(BERT.encode(map)),
+            '<<131,116,0,0,0,1,100,0,3,102,111,111,109,0,0,0,3,98,97,114>>');
+    }
+
+    @Test
+    public function decodeMap(): Void {
+        var decodedObj: ObjectMap<Dynamic, Dynamic> = BERT.decode(
+            arrayToBytes([131,116,0,0,0,1,100,0,3,102,111,111,109,0,0,0,3,98,97,114]));
+        var key: Dynamic = null;
+        for(k in decodedObj.keys()) {
+            key = k;
+        }
+        Assert.areEqual(
+            arrayToBytes(decodedObj.get(key).value),
+            "bar"
+        );
     }
 
     private function arrayToBytes(ba:Array<Int>):Bytes {

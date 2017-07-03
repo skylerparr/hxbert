@@ -1,4 +1,6 @@
 package org.hxbert;
+import org.hxbert.BERT.ErlangValue;
+import haxe.ds.ObjectMap;
 import haxe.io.Output;
 import haxe.io.BytesOutput;
 import org.hxbert.BERT;
@@ -106,6 +108,8 @@ class Encoder {
                 writeTuple(obj.value, output);
             case ErlangType.BINARY:
                 writeBinary(obj.value, output);
+            case ErlangType.MAP:
+                writeMap(obj.value, output);
             case ErlangType.BIG_INTEGER:
 //        writeBigInteger(obj.value);
             default:
@@ -139,6 +143,19 @@ class Encoder {
 //      mResult.writeByte(byte);
 //  }
 //
+
+    private static inline function writeMap(obj: ObjectMap<Dynamic, Dynamic>, output: Output): Void {
+        var length: Int = 0;
+        for(key in obj.keys()) {
+            length++;
+        }
+        output.writeByte(Tag.MAP);
+        output.writeInt32(length);
+        for(key in obj.keys()) {
+            write(key, output);
+            write(obj.get(key), output);
+        }
+    }
 
     private static inline function writeBinary(obj:Dynamic, output:Output):Void {
         output.writeByte(Tag.BINARY);
