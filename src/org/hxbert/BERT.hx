@@ -1,13 +1,12 @@
 package org.hxbert;
-import flash.utils.ByteArray;
+import haxe.io.Bytes;
 
 /**
  * ...
  * @author oneclick
  */
 
-enum ErlangType
-{
+enum ErlangType {
   ATOM;
   TUPLE;
   BINARY;
@@ -16,40 +15,33 @@ enum ErlangType
 
 typedef ErlangValue =
 {
-  type: ErlangType,
-  value: Dynamic
+  type:ErlangType,
+  value:Dynamic
 }
 
-class BERT
-{
-  public static function encode(obj: Dynamic): ByteArray
-  {
-    return new Encoder(Converter.expand(obj)).getBytes();
+class BERT {
+  public static inline function encode(obj:Dynamic):Bytes {
+    return Encoder.encode(Converter.expand(obj));
   }
 
-  public static function decode(bytes: ByteArray, ?raw: Bool = false): Dynamic
-  {
-    var value = new Decoder(bytes).getValue();
+  public static inline function decode(bytes:Bytes, raw:Bool = false):Dynamic {
+    var value: Dynamic = Decoder.decode(bytes);
     return raw ? value : Converter.fold(value);
   }
 
-  public static function atom(val: String): ErlangValue
-  {
+  public static inline function atom(val:String):ErlangValue {
     return { type: ErlangType.ATOM, value: val };
   }
 
-  public static function tuple(val: Array<Dynamic>): ErlangValue
-  {
+  public static inline function tuple(val:Array<Dynamic>):ErlangValue {
     return { type: ErlangType.TUPLE, value: val };
   }
 
-  public static function binary(val: Dynamic): ErlangValue
-  {
+  public static inline function binary(val:Dynamic):ErlangValue {
     return { type: ErlangType.BINARY, value: val };
   }
 
-  public static function bigInteger(val: Array<UInt>): ErlangValue
-  {
+  public static inline function bigInteger(val:Array<UInt>):ErlangValue {
     return { type: ErlangType.BIG_INTEGER, value: val };
   }
 }
