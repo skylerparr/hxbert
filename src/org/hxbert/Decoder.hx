@@ -1,4 +1,5 @@
 package org.hxbert;
+import haxe.io.Input;
 import haxe.io.BytesInput;
 import haxe.io.Bytes;
 import org.hxbert.BERT;
@@ -9,59 +10,61 @@ import org.hxbert.BERT;
  */
 
 class Decoder {
-  private static function error(message:String):Void {
-    throw ('BERT Decoder error: ' + message);
-  }
-
-  public static function decode(mBytes:Bytes):Dynamic {
-    var tagStart = mBytes.get(0);
-    if (tagStart != Tag.START) {
-      error('Incorrect start tag');
+    private static function error(message:String):Void {
+        throw ('BERT Decoder error: ' + message);
     }
 
-    var tag:Int = mBytes.get(1);
+    public static function decode(mBytes:Bytes):Dynamic {
+        var input: BytesInput = new BytesInput(mBytes, 0, mBytes.length);
+        input.bigEndian = true;
 
-    return switch (tag)
-    {
-      case Tag.SMALL_ATOM, Tag.ATOM:
-        readAtom(mBytes, tag);
+        var tagStart = input.readByte();
+        if (tagStart != Tag.START) {
+            error('Incorrect start tag');
+        }
+
+        var tag:Int = input.readByte();
+
+        return switch (tag)
+        {
+            case Tag.SMALL_ATOM, Tag.ATOM:
+                readAtom(input, tag);
 //      case Tag.BINARY:
 ////        return readBinary();
-      case Tag.SMALL_INTEGER, Tag.INTEGER:
-        readInteger(mBytes, tag);
+            case Tag.SMALL_INTEGER, Tag.INTEGER:
+                readInteger(input, tag);
 //      case Tag.SMALL_BIG, Tag.LARGE_BIG:
 //        return readBigIneger(tag);
 //      case Tag.FLOAT:
 //        readFloat(mBytes);
-      case Tag.NEW_FLOAT:
-        readNewFloat(mBytes);
-//      case Tag.STRING:
-////        return readString();
+            case Tag.NEW_FLOAT:
+                readNewFloat(input);
+            case Tag.STRING:
+                readString(input);
 //      case Tag.LIST:
 ////        return readArray();
 //      case Tag.SMALL_TUPLE, Tag.LARGE_TUPLE:
 ////        return readTuple(tag);
 //      case Tag.NIL:
 //        [];
-      default:
-        error('Unexpected tag ' + tag + ' at pos 1');
-        {};
-    }
-  }
-
-  private static inline function readAtom(mBytes:Bytes, type:UInt):ErlangValue {
-    var length = switch (type)
-    {
-      case Tag.SMALL_ATOM:
-        mBytes.get(2);
-      case Tag.ATOM:
-        mBytes.get(3);
-      default:
-        null;
+            default:
+                error('Unexpected tag ' + tag + ' at pos 1');
+                {};
+        }
     }
 
-    return BERT.atom(mBytes.readString(4, mBytes.length - 4));
-  }
+    private static inline function readAtom(input:Input, type:UInt):ErlangValue {
+        var length = switch (type)
+        {
+            case Tag.SMALL_ATOM:
+                input.readByte();
+            case Tag.ATOM:
+                input.readUInt16();
+            default:
+                null;
+        }
+        return BERT.atom(input.readString(length));
+    }
 //
 //  private function readBinary(): ErlangValue
 //  {
@@ -73,20 +76,19 @@ class Decoder {
 //    return BERT.binary(array);
 //  }
 //
-  private static inline function readInteger(mBytes: Bytes, type:UInt):Int {
-    return switch (type)
-    {
-      case Tag.SMALL_INTEGER:
-        mBytes.get(2);
-      case Tag.INTEGER:
-        var input: BytesInput = new BytesInput(mBytes, 2);
-        input.bigEndian = true;
-        input.readInt32();
-      default:
-        0;
-    }
 
-  }
+    private static inline function readInteger(input: Input, type:UInt):Int {
+        return switch (type)
+        {
+            case Tag.SMALL_INTEGER:
+                input.readByte();
+            case Tag.INTEGER:
+                input.readInt32();
+            default:
+                0;
+        }
+
+    }
 //
 //  private function readBigIneger(type: UInt): Dynamic
 //  {
@@ -111,21 +113,14 @@ class Decoder {
 //    return Std.parseFloat(bytes.readMultiByte(31, 'us-ascii'));
 //  }
 
-  private static inline function readNewFloat(bytes:Bytes):Float {
-    var input:BytesInput = new BytesInput(bytes, 2, 8);
-    input.bigEndian = true;
-    return input.readDouble();
-  }
-//
-//  private function readString(): String
-//  {
-//    var length = mBytes.readUnsignedShort();
-//    var str = new StringBuf();
-//    while (length-- > 0)
-//      str.addChar(mBytes.readUnsignedByte());
-//
-//    return str.toString();
-//  }
+    private static inline function readNewFloat(input: Input):Float {
+        return input.readDouble();
+    }
+
+    private static inline function readString(input: Input):String {
+        var length: Int = input.readInt16();
+        return input.readString(length);
+    }
 //
 //  private function readArray(): Array<Dynamic>
 //  {
