@@ -1,7 +1,6 @@
 package org.hxbert;
 import haxe.io.Output;
 import haxe.io.BytesOutput;
-import haxe.io.BytesInput;
 import org.hxbert.BERT;
 import haxe.io.Bytes;
 
@@ -18,24 +17,27 @@ class Encoder {
         output.bigEndian = true;
         output.writeByte(Tag.START);
 
+        write(obj, output);
+        return output.getBytes();
+    }
+
+    private static inline function write(obj:Dynamic, output:Output):Void {
         if (Std.is(obj, String)) {
             writeString(obj, output);
         } else if (Std.is(obj, Int)) {
             writeInteger(obj, output);
         } else if (Std.is(obj, Float)) {
             writeFloat(obj, output);
-        }
-//    else if (Std.is(obj, Array))
-//      writeList(obj);
-//    else if (Std.is(obj, List))
-//      writeList(Lambda.array(obj));
-        else {
+        } else if (Std.is(obj, Array)) {
+            writeList(obj, output);
+        } else if (Std.is(obj, List)) {
+            writeList(Lambda.array(obj), output);
+        } else {
             writeErlangValue(obj, output);
         }
-        return output.getBytes();
     }
 
-    private static inline function writeString(obj:String, output:BytesOutput):Void {
+    private static inline function writeString(obj:String, output:Output):Void {
 //    if (obj.length >= 65535) {
 //      var list = [];
 //      for (i in 0...obj.length) {
@@ -86,19 +88,14 @@ class Encoder {
         output.writeDouble(obj);
     }
 
-//  private static inline function writeList(mResult: Bytes, obj:Array<Dynamic>):Void {
-//    if (obj.length == 0) {
-//      mResult.writeByte(Tag.NIL);
-//      return;
-//    }
-//
-//    mResult.writeByte(Tag.LIST);
-//    mResult.writeUnsignedInt(obj.length);
-//    for (item in obj) {
-//      write(item);
-//    }
-//    mResult.writeByte(Tag.NIL);
-//  }
+    private static inline function writeList(obj:Array<Dynamic>, output:Output):Void {
+        output.writeByte(Tag.LIST);
+        output.writeInt32(obj.length);
+        for (item in obj) {
+            write(item, output);
+        }
+        output.writeByte(Tag.NIL);
+    }
 
     private static inline function writeErlangValue(obj:ErlangValue, output:Output):Void {
         switch (obj.type)
@@ -106,28 +103,27 @@ class Encoder {
             case ErlangType.ATOM:
                 writeAtom(obj.value, output);
             case ErlangType.TUPLE:
-//        writeTuple(obj.value);
+                writeTuple(obj.value, output);
             case ErlangType.BINARY:
-//        writeBinary(obj.value);
+                writeBinary(obj.value, output);
             case ErlangType.BIG_INTEGER:
 //        writeBigInteger(obj.value);
             default:
         }
     }
-//
-//  private function writeTuple(obj:Array<Dynamic>):Void {
-//    if (obj.length < 256) {
-//      mResult.writeByte(Tag.SMALL_TUPLE);
-//      mResult.writeByte(obj.length);
-//    }
-//    else {
-//      mResult.writeByte(Tag.LARGE_TUPLE);
-//      mResult.writeUnsignedInt(obj.length);
-//    }
-//
-//    for (item in obj)
-//      write(item);
-//  }
+
+    private static inline function writeTuple(obj:Array<Dynamic>, output:Output):Void {
+        if (obj.length < 256) {
+            output.writeByte(Tag.SMALL_TUPLE);
+            output.writeByte(obj.length);
+        } else {
+            output.writeByte(Tag.LARGE_TUPLE);
+            output.writeInt32(obj.length);
+        }
+
+        for (item in obj)
+            write(item, output);
+    }
 //
 //  private function writeBigInteger(obj:Array<UInt>):Void {
 //    if (obj.length <= 256) {
@@ -143,16 +139,17 @@ class Encoder {
 //      mResult.writeByte(byte);
 //  }
 //
-//  private function writeBinary(obj:Dynamic):Void {
-//    mResult.writeByte(Tag.BINARY);
-//    mResult.writeUnsignedInt(obj.length);
-//    if (Std.is(obj, String)) {
-//      mResult.writeMultiByte(obj, 'us-ascii');
-//    }
-//    else {
-//      var byteList = cast(obj, Array<Dynamic>);
-//      for (byte in byteList)
-//        mResult.writeByte(byte);
-//    }
-//  }
+
+    private static inline function writeBinary(obj:Dynamic, output:Output):Void {
+        output.writeByte(Tag.BINARY);
+        output.writeInt32(obj.length);
+        if (Std.is(obj, String)) {
+            writeString(obj, output);
+        } else {
+            var byteList:Array<Dynamic> = cast(obj, Array<Dynamic>);
+            for (byte in byteList) {
+                output.writeByte(byte);
+            }
+        }
+    }
 }

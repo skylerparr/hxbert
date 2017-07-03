@@ -15,22 +15,25 @@ class Decoder {
     }
 
     public static function decode(mBytes:Bytes):Dynamic {
-        var input: BytesInput = new BytesInput(mBytes, 0, mBytes.length);
+        var input:BytesInput = new BytesInput(mBytes, 0, mBytes.length);
         input.bigEndian = true;
 
         var tagStart = input.readByte();
         if (tagStart != Tag.START) {
             error('Incorrect start tag');
         }
+        return read(input);
+    }
 
+    private static function read(input:Input):Dynamic {
         var tag:Int = input.readByte();
 
         return switch (tag)
         {
             case Tag.SMALL_ATOM, Tag.ATOM:
                 readAtom(input, tag);
-//      case Tag.BINARY:
-////        return readBinary();
+            case Tag.BINARY:
+                readBinary(input);
             case Tag.SMALL_INTEGER, Tag.INTEGER:
                 readInteger(input, tag);
 //      case Tag.SMALL_BIG, Tag.LARGE_BIG:
@@ -41,10 +44,10 @@ class Decoder {
                 readNewFloat(input);
             case Tag.STRING:
                 readString(input);
-//      case Tag.LIST:
-////        return readArray();
-//      case Tag.SMALL_TUPLE, Tag.LARGE_TUPLE:
-////        return readTuple(tag);
+            case Tag.LIST:
+                readArray(input);
+            case Tag.SMALL_TUPLE, Tag.LARGE_TUPLE:
+                readTuple(tag, input);
 //      case Tag.NIL:
 //        [];
             default:
@@ -65,19 +68,18 @@ class Decoder {
         }
         return BERT.atom(input.readString(length));
     }
-//
-//  private function readBinary(): ErlangValue
-//  {
-//    var length = mBytes.readUnsignedInt();
-//    var array = [];
-//    for (i in 0...length)
-//      array.push(mBytes.readUnsignedByte());
-//
-//    return BERT.binary(array);
-//  }
-//
 
-    private static inline function readInteger(input: Input, type:UInt):Int {
+    private static inline function readBinary(input:Input):ErlangValue {
+        var length = input.readInt32();
+        var array = [];
+        for (i in 0...length) {
+            array.push(input.readByte());
+        }
+
+        return BERT.binary(array);
+    }
+
+    private static inline function readInteger(input:Input, type:UInt):Int {
         return switch (type)
         {
             case Tag.SMALL_INTEGER:
@@ -113,42 +115,45 @@ class Decoder {
 //    return Std.parseFloat(bytes.readMultiByte(31, 'us-ascii'));
 //  }
 
-    private static inline function readNewFloat(input: Input):Float {
+    private static inline function readNewFloat(input:Input):Float {
         return input.readDouble();
     }
 
-    private static inline function readString(input: Input):String {
-        var length: Int = input.readInt16();
+    private static inline function readString(input:Input):String {
+        var length:Int = input.readInt16();
         return input.readString(length);
     }
-//
-//  private function readArray(): Array<Dynamic>
-//  {
-//    var length = mBytes.readUnsignedInt();
-//    var array = [];
-//    while (length-- > 0)
-//      array.push(read());
-//
-//    if (Tag.NIL != mBytes.readUnsignedByte())
-//      error('Invalid end of list at pos' + (mBytes.position - 1));
-//
-//    return array;
-//  }
-//
-//  private function readTuple(type: UInt): ErlangValue
-//  {
-//    var length = switch (type)
-//    {
-//      case Tag.SMALL_TUPLE:
-//        mBytes.readUnsignedByte();
-//      case Tag.LARGE_TUPLE:
-//        mBytes.readUnsignedInt();
-//    }
-//
-//    var array = [];
-//    while (length-- > 0)
-//      array.push(read());
-//
-//    return BERT.tuple(array);
-//  }
+
+    private static inline function readArray(input: Input):Array<Dynamic> {
+        var length = input.readInt32();
+        var array: Array<Dynamic> = [];
+        while (length-- > 0) {
+            array.push(read(input));
+        }
+
+        if (Tag.NIL != input.readByte()) {
+            error('Invalid end of list at pos ' + (cast(input, BytesInput).position - 1));
+        }
+
+        return array;
+    }
+
+    private static inline function readTuple(type:UInt, input:Input):ErlangValue {
+        var length = switch (type)
+        {
+            case Tag.SMALL_TUPLE:
+                input.readByte();
+            case Tag.LARGE_TUPLE:
+                input.readInt32();
+            default:
+                0;
+        }
+
+        var array = [];
+        while (length-- > 0) {
+            array.push(read(input));
+        }
+
+        return BERT.tuple(array);
+    }
 }
